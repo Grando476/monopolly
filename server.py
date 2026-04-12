@@ -7,7 +7,8 @@ import json
 import os
 import tkinter as tk
 
-HOST = '127.0.0.1'
+HOST = '25.36.22.142'
+#HOST = '127.0.0.1'
 PORT = 65432
 
 class Space:
@@ -87,21 +88,21 @@ class MonopolyGame:
         # 16 space minimalist square board logic
         return [
             Space("GO", "GO", short_name="GO"),
-            Space("Zein Kebab", "PROPERTY", 60, 2, "Zein"),
-            Space("Zabka", "PROPERTY", 80, 6, "Zabka"),
-            Space("Income Tax", "TAX", 200, short_name="Tax"),
+            Space("Zein Kebab", "PROPERTY", 60, 10, "Zein"),
+            Space("Zabka", "PROPERTY", 80, 15, "Zabka"),
+            Space("Income Tax", "TAX", 300, short_name="Tax"),
             Space("Jail / Visit", "JAIL", short_name="Jail"),
             Space("Dziekanat", "PROPERTY", 100, 25, "Dziekanat"),
-            Space("Gmach Glowny B", "PROPERTY", 120, 6, "GG B"),
-            Space("Gmach Glowny ", "PROPERTY", 140, 10, "GG"),
+            Space("Gmach Glowny B", "PROPERTY", 120, 80, "GG B"),
+            Space("Gmach Glowny ", "PROPERTY", 140, 90, "GG"),
             Space("Free Park", "FREE_PARKING", short_name="Free Prk"),
-            Space("WZiE", "PROPERTY", 200, 20, "ZiE"),
-            Space("Old WETI", "PROPERTY", 240, 25, "Old ETI"),
-            Space("New WETI", "PROPERTY", 260, 22, "New ETI"),
+            Space("WZiE", "PROPERTY", 200, 30, "ZiE"),
+            Space("Old WETI", "PROPERTY", 240, 40, "Old ETI"),
+            Space("New WETI", "PROPERTY", 260, 50, "New ETI"),
             Space("Go To Jail!", "GO_TO_JAIL", short_name="Go 2 Jail"),
-            Space("DS2", "PROPERTY", 280, 24, "DS2"),
-            Space("DS7", "PROPERTY", 350, 14, "DS7"),
-            Space("DS5", "PROPERTY", 400, 50, "DS5")
+            Space("DS2", "PROPERTY", 280, 100, "DS2"),
+            Space("DS7", "PROPERTY", 350, 120, "DS7"),
+            Space("DS5", "PROPERTY", 400, 150, "DS5")
         ]
 
     def log(self, msg):
@@ -147,7 +148,7 @@ class MonopolyGame:
         while True:
             active_players = [p for p in self.players if p.active]
             if len(active_players) < 2 and len(self.players) > 1:
-                self.log("Game over! Not enough players remaining.")
+                self.log("Game over - Not enough players remaining")
                 self.broadcast_state()
                 break
                 
@@ -162,9 +163,9 @@ class MonopolyGame:
             # 1. Jail Logic
             if player.in_jail:
                 player.jail_turns += 1
-                self.log(f"{player.name} is in jail (Turn {player.jail_turns}).")
+                self.log(f"{player.name} is in jail - Turn {player.jail_turns}.")
                 
-                self.broadcast_state(prompt="Pay $50 to get out? (y/n) [or press Enter to roll]: ", target_player=player)
+                self.broadcast_state(prompt="You can pay $50 to get out [Write (y/n) or press Enter to roll] ", target_player=player)
                 ans = player.recv().lower()
                 
                 if ans == 'y':
@@ -174,10 +175,10 @@ class MonopolyGame:
                         player.jail_turns = 0
                         self.log(f"{player.name} paid $50 and is out of jail.")
                     else:
-                        self.log("Not enough money! You must roll.")
+                        self.log("Not enough money. You must roll")
                 
                 if player.in_jail and player.jail_turns >= 3:
-                    self.log(f"{player.name} must pay $50 to get out of jail now.")
+                    self.log(f"{player.name} must pay $50 to get out of jail.")
                     player.balance -= 50
                     player.in_jail = False
                     player.jail_turns = 0
@@ -189,7 +190,7 @@ class MonopolyGame:
                     d1, d2 = random.randint(1, 6), random.randint(1, 6)
                     self.log(f"{player.name} rolled {d1} and {d2}.")
                     if d1 == d2:
-                        self.log(f"{player.name} rolled doubles and is out of jail!")
+                        self.log(f"{player.name} successfully rolled doubles and is out of jail")
                         player.in_jail = False
                         player.jail_turns = 0
                         self.move_player(player, d1 + d2)
@@ -209,10 +210,10 @@ class MonopolyGame:
                 continue
                 
             d1, d2 = random.randint(1, 6), random.randint(1, 6)
-            self.log(f"{player.name} rolled {d1} and {d2} (Total: {d1+d2}).")
+            self.log(f"{player.name} rolled {d1} and {d2} -> Total: {d1+d2}")
             self.move_player(player, d1 + d2)
             
-            # Simple simulation of rolling doubles (doesn't grant an extra turn yet for simplicity)
+            # Simple simulation of rolling doubles (doesn't grant an extra turn yet)
             self.broadcast_state()
             turn_idx += 1
             time.sleep(1.5)
@@ -227,7 +228,7 @@ class MonopolyGame:
             time.sleep(0.3)
         
         if player.position < old_pos:
-            self.log(f"{player.name} passed GO and collected $200!")
+            self.log(f"{player.name} passed start and collected $200!")
             player.balance += 200
             
         space = self.board[player.position]
@@ -257,18 +258,18 @@ class MonopolyGame:
                 player.balance -= rent
                 space.owner.balance += rent
                 if player.balance < 0:
-                    self.log(f"{player.name} went bankrupt!")
+                    self.log(f"{player.name} went bankrupt")
                     player.active = False
                     
         elif space.space_type == "TAX":
-            self.log(f"{player.name} paid $200 in taxes.")
+            self.log(f"{player.name} paid $200 in taxes")
             player.balance -= 200
             if player.balance < 0:
-                self.log(f"{player.name} went bankrupt!")
+                self.log(f"{player.name} went bankrupt")
                 player.active = False
                 
         elif space.space_type == "GO_TO_JAIL":
-            self.log(f"{player.name} goes directly to Jail!")
+            self.log(f"{player.name} goes to Jail")
             self.broadcast_state()
             time.sleep(1)
             player.position = 4  # Index of Jail

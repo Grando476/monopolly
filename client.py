@@ -4,7 +4,8 @@ import sys
 import json
 import os
 
-HOST = '127.0.0.1'
+HOST = '25.36.22.142'
+#HOST = '127.0.0.1
 PORT = 65432
 
 def clear_screen():
