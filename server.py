@@ -92,17 +92,17 @@ class MonopolyGame:
             Space("Zabka", "PROPERTY", 80, 15, "Zabka"),
             Space("Income Tax", "TAX", 300, short_name="Tax"),
             Space("Jail / Visit", "JAIL", short_name="Jail"),
-            Space("Dziekanat", "PROPERTY", 100, 25, "Dziekanat"),
-            Space("Gmach Glowny B", "PROPERTY", 120, 80, "GG B"),
-            Space("Gmach Glowny ", "PROPERTY", 140, 90, "GG"),
+            Space("Dziekanat", "PROPERTY", 140, 25, "Dziekanat"),
+            Space("Gmach Glowny B", "PROPERTY", 160, 40, "GG B"),
+            Space("Gmach Glowny ", "PROPERTY", 180, 50, "GG"),
             Space("Free Park", "FREE_PARKING", short_name="Free Prk"),
-            Space("WZiE", "PROPERTY", 200, 30, "ZiE"),
-            Space("Old WETI", "PROPERTY", 240, 40, "Old ETI"),
-            Space("New WETI", "PROPERTY", 260, 50, "New ETI"),
+            Space("WZiE", "PROPERTY", 200, 60, "ZiE"),
+            Space("Old WETI", "PROPERTY", 240, 70, "Old ETI"),
+            Space("New WETI", "PROPERTY", 260, 80, "New ETI"),
             Space("Go To Jail!", "GO_TO_JAIL", short_name="Go 2 Jail"),
-            Space("DS2", "PROPERTY", 280, 100, "DS2"),
-            Space("DS7", "PROPERTY", 350, 120, "DS7"),
-            Space("DS5", "PROPERTY", 400, 150, "DS5")
+            Space("DS2", "PROPERTY", 380, 100, "DS2"),
+            Space("DS7", "PROPERTY", 450, 120, "DS7"),
+            Space("DS5", "PROPERTY", 500, 150, "DS5")
         ]
 
     def log(self, msg):
@@ -136,11 +136,11 @@ class MonopolyGame:
                     
                 payload = json.dumps(state)
                 # To distinguish json payloads from standard text prompts (like login),
-                # we'll prefix them with JSON_DATA|
+                # we'll prefix them with JSON_DATA
                 p.send_raw("JSON_DATA|" + payload)
 
     def game_loop(self):
-        self.log("!!! THE GAME IS STARTING !!!")
+        self.log(" THE GAME IS STARTING ")
         self.broadcast_state()
         time.sleep(1)
         turn_idx = 0
@@ -160,7 +160,7 @@ class MonopolyGame:
             self.log(f"---> Turn of {player.name} <---")
             self.broadcast_state()
             
-            # 1. Jail Logic
+            # Jail logic handling
             if player.in_jail:
                 player.jail_turns += 1
                 self.log(f"{player.name} is in jail - Turn {player.jail_turns}.")
@@ -202,7 +202,7 @@ class MonopolyGame:
                     time.sleep(1.5)
                     continue
 
-            # 2. Regular Turn Logic
+            # Regular Turn Logic
             self.broadcast_state(prompt="Press Enter to roll the dice...", target_player=player)
             player.recv()
             if not player.active:
@@ -236,6 +236,7 @@ class MonopolyGame:
         self.broadcast_state()
         time.sleep(0.5)
         
+        #Standing on place logic handling
         if space.space_type == "PROPERTY":
             if space.owner is None:
                 if player.balance >= space.price:
