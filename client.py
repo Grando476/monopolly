@@ -12,7 +12,6 @@ def clear_screen():
 
 def format_cell(space_idx, state, width=14):
     """
-    Formats a single square cell representing a space on the board.
     Takes a width, centers the name of the cell, and puts pawns of any players currently on it.
     """
     board = state.get("board", [])
@@ -28,7 +27,7 @@ def format_cell(space_idx, state, width=14):
             
     header = space["short_name"].center(width)
     
-    # Ownership or Price info
+    # ownership/ price info
     info = ""
     if space["space_type"] == "PROPERTY":
         if space["owner"]:
@@ -54,15 +53,15 @@ def draw_tui(state):
     print(" "*33 + "MONOPOLY" + " "*35)
     print("="*76)
     
-    # Top Row (Index 0 to 4)
+    # top row (0 - 4)
     top_row = [format_cell(i, state) for i in range(5)]
     
-    # Middle Rows
+    # middle rows
     mid_row1 = [format_cell(15, state), [" "*14]*3, [" "*14]*3, [" "*14]*3, format_cell(5, state)]
     mid_row2 = [format_cell(14, state), [" "*14]*3, [" "*14]*3, [" "*14]*3, format_cell(6, state)]
     mid_row3 = [format_cell(13, state), [" "*14]*3, [" "*14]*3, [" "*14]*3, format_cell(7, state)]
     
-    # Bottom Row (Index 12 down to 8)
+    # bottom row (12 - 8)
     bottom_row = [format_cell(12, state), format_cell(11, state), format_cell(10, state), format_cell(9, state), format_cell(8, state)]
     
     def print_row(row_cells):
@@ -70,7 +69,6 @@ def draw_tui(state):
         for line_idx in range(3):
             line = "|"
             for cell in row_cells:
-                # cell is a list of 3 strings
                 line += cell[line_idx] + "|"
             print(line)
             
@@ -81,7 +79,7 @@ def draw_tui(state):
     print_row(bottom_row)
     print("-" * 76)
     
-    # Print Player Stats
+    # Print player Stats
     print("\n[ PLAYERS ]")
     for p in state.get("players", []):
         status = "(JAIL)" if p["in_jail"] else ""
@@ -97,7 +95,6 @@ def draw_tui(state):
     
     prompt = state.get("prompt", "")
     if prompt:
-        # Prompt needs to cleanly exit line buffer
         sys.stdout.write(f"\n{prompt}")
         sys.stdout.flush()
 
@@ -113,7 +110,7 @@ def receive_messages(sock):
                 
             buffer += data.decode()
             
-            # The server groups messages per line with "\n" at the end.
+            # server groups messages per line with "\n" at the end
             while "\n" in buffer:
                 line, buffer = buffer.split("\n", 1)
                 
@@ -125,12 +122,11 @@ def receive_messages(sock):
                     except json.JSONDecodeError:
                         pass
                 else:
-                    # Regular text messages (like welcome prompt)
+                    #not state messages
                     sys.stdout.write(line + "\n")
                     sys.stdout.flush()
                     
         except Exception as e:
-            # Silently exit background thread on quit
             break
             
     sock.close()
