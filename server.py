@@ -34,7 +34,7 @@ class Player:
     def __init__(self, conn, addr, p_id):
         self.conn = conn
         self.addr = addr
-        self.id = p_id # 1-indexed to act as pawn number like [1]
+        self.id = p_id 
         self.name = None
         self.balance = 1500
         self.position = 0
@@ -166,7 +166,7 @@ class MonopolyGame:
         while True:
             alive_players = [p for p in self.players if not p.bankrupt]
             if len(alive_players) < 2 and len(self.players) > 1:
-                self.log("Game over - We have a winner!")
+                self.log("Game over")
                 self.broadcast_state()
                 break
                 
