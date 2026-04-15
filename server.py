@@ -7,8 +7,8 @@ import json
 import os
 import tkinter as tk
 
-HOST = '25.36.22.142'
-#HOST = '127.0.0.1'
+#HOST = '25.36.22.142'
+HOST = '127.0.0.1'
 PORT = 65432
 
 class Space:
@@ -41,7 +41,8 @@ class Player:
         self.inventory = []
         self.in_jail = False
         self.jail_turns = 0
-        self.active = True
+        self.connected = True
+        self.bankrupt = False
         self.input_queue = queue.Queue()
 
     def to_dict(self):
@@ -51,7 +52,7 @@ class Player:
             "balance": self.balance,
             "position": self.position,
             "in_jail": self.in_jail,
-            "active": self.active,
+            "active": self.connected and not self.bankrupt,
             "inventory": [space.name for space in self.inventory]
         }
 
@@ -59,7 +60,7 @@ class Player:
         try:
             self.conn.sendall((msg + "\n").encode())
         except Exception:
-            self.active = False
+            self.connected = False
             
     def dump_queue(self):
         while not self.input_queue.empty():
@@ -68,13 +69,30 @@ class Player:
             except queue.Empty:
                 break
 
-    def recv(self, timeout=86400):
+    def get_input(self, game_obj, prompt_text):
         self.dump_queue()
-        try:
-            return self.input_queue.get(timeout=timeout)
-        except Exception:
-            self.active = False
-            return ""
+        game_obj.broadcast_state(prompt=prompt_text, target_player=self)
+        was_disconnected = not self.connected
+        
+        if was_disconnected:
+            game_obj.broadcast_state(prompt=f"= PAUSED = Waiting for {self.name} to reconnect...")
+
+        while True:
+            if not self.connected:
+                if not was_disconnected:
+                    game_obj.broadcast_state(prompt=f"= PAUSED = Waiting for {self.name} to reconnect...")
+                    was_disconnected = True
+                time.sleep(1)
+                continue
+                
+            if was_disconnected and self.connected:
+                game_obj.broadcast_state(prompt=prompt_text, target_player=self)
+                was_disconnected = False
+                
+            try:
+                return self.input_queue.get(timeout=1)
+            except queue.Empty:
+                pass
 
 class MonopolyGame:
     def __init__(self):
@@ -119,14 +137,14 @@ class MonopolyGame:
         """
         state = {
             "board": [s.to_dict() for s in self.board],
-            "players": [p.to_dict() for p in self.players if p.active],
+            "players": [p.to_dict() for p in self.players if not p.bankrupt],
             "messages": self.message_log,
             "started": self.started,
             "prompt": ""
         }
         
         for p in self.players:
-            if p.active:
+            if p.connected:
                 if target_player and p == target_player:
                     state["prompt"] = prompt
                 elif not target_player:
@@ -146,14 +164,14 @@ class MonopolyGame:
         turn_idx = 0
         
         while True:
-            active_players = [p for p in self.players if p.active]
-            if len(active_players) < 2 and len(self.players) > 1:
-                self.log("Game over - Not enough players remaining")
+            alive_players = [p for p in self.players if not p.bankrupt]
+            if len(alive_players) < 2 and len(self.players) > 1:
+                self.log("Game over - We have a winner!")
                 self.broadcast_state()
                 break
                 
             player = self.players[turn_idx % len(self.players)]
-            if not player.active:
+            if player.bankrupt:
                 turn_idx += 1
                 continue
                 
@@ -165,8 +183,7 @@ class MonopolyGame:
                 player.jail_turns += 1
                 self.log(f"{player.name} is in jail - Turn {player.jail_turns}.")
                 
-                self.broadcast_state(prompt="You can pay $50 to get out [Write (y/n) or press Enter to roll] ", target_player=player)
-                ans = player.recv().lower()
+                ans = player.get_input(self, "You can pay $50 to get out [Write (y/n) or press Enter to roll] ").lower()
                 
                 if ans == 'y':
                     if player.balance >= 50:
@@ -184,8 +201,7 @@ class MonopolyGame:
                     player.jail_turns = 0
                 
                 if player.in_jail:
-                    self.broadcast_state(prompt="Press Enter to roll for doubles...", target_player=player)
-                    player.recv()
+                    player.get_input(self, "Press Enter to roll for doubles...")
                     
                     d1, d2 = random.randint(1, 6), random.randint(1, 6)
                     self.log(f"{player.name} rolled {d1} and {d2}.")
@@ -203,9 +219,8 @@ class MonopolyGame:
                     continue
 
             # Regular Turn Logic
-            self.broadcast_state(prompt="Press Enter to roll the dice...", target_player=player)
-            player.recv()
-            if not player.active:
+            player.get_input(self, "Press Enter to roll the dice...")
+            if player.bankrupt:
                 turn_idx += 1
                 continue
                 
@@ -240,8 +255,7 @@ class MonopolyGame:
         if space.space_type == "PROPERTY":
             if space.owner is None:
                 if player.balance >= space.price:
-                    self.broadcast_state(prompt=f"Buy {space.name} for ${space.price}? (y/n): ", target_player=player)
-                    ans = player.recv().lower()
+                    ans = player.get_input(self, f"Buy {space.name} for ${space.price}? (y/n): ").lower()
                     
                     if ans == 'y':
                         player.balance -= space.price
@@ -260,14 +274,14 @@ class MonopolyGame:
                 space.owner.balance += rent
                 if player.balance < 0:
                     self.log(f"{player.name} went bankrupt")
-                    player.active = False
+                    player.bankrupt = True
                     
         elif space.space_type == "TAX":
             self.log(f"{player.name} paid $200 in taxes")
             player.balance -= 200
             if player.balance < 0:
                 self.log(f"{player.name} went bankrupt")
-                player.active = False
+                player.bankrupt = True
                 
         elif space.space_type == "GO_TO_JAIL":
             self.log(f"{player.name} goes to Jail")
@@ -280,7 +294,7 @@ class MonopolyGame:
 
 
 def handle_client(conn, addr, game):
-    conn.sendall(b"Welcome to Console Monopoly!\nEnter your name: ")
+    conn.sendall(b"Welcome to Console Monopoly!\nEnter your name (max 5 characters):\n")
     try:
         name = conn.recv(1024).decode().strip()
     except Exception:
@@ -288,29 +302,48 @@ def handle_client(conn, addr, game):
         return
         
     with game.lock:
-        p_id = len(game.players) + 1
-        player = Player(conn, addr, p_id)
-        player.name = name if name else f"Player_{addr[1]}"
-        game.players.append(player)
+        name = name if name else f"Player_{addr[1]}"
+        existing_player = next((p for p in game.players if p.name == name), None)
+        
+        if existing_player:
+            if existing_player.connected:
+                conn.sendall(b"Name already taken and player is currently connected. Disconnecting.\n")
+                conn.close()
+                return
+            else:
+                existing_player.conn = conn
+                existing_player.addr = addr
+                existing_player.connected = True
+                player = existing_player
+                game.log(f"[+] {player.name} reconnected!")
+                is_new = False
+        else:
+            p_id = len(game.players) + 1
+            player = Player(conn, addr, p_id)
+            player.name = name
+            game.players.append(player)
+            is_new = True
+
+    if is_new:
         num_players = len(game.players)
-    
-    game.log(f"[+] {player.name} joined the game! ({num_players} players in lobby)")
-    
-    if num_players >= 2 and not game.started:
-        game.broadcast_state(prompt=">>> We have 2+ players! Type 'start' to begin the game. <<<")
+        game.log(f"[+] {player.name} joined the game! ({num_players} players in lobby)")
+        if num_players >= 2 and not game.started:
+            game.broadcast_state(prompt=">>> We have 2+ players! Type 'start' to begin the game. <<<")
+        else:
+            game.broadcast_state(prompt="Waiting for more players to join...")
     else:
-        game.broadcast_state(prompt="Waiting for more players to join...")
+        game.broadcast_state(prompt=">>> Welcome back! You have reconnected. <<<", target_player=player)
 
     # Main Client Listener Loop
-    while player.active:
+    while player.connected:
         try:
             data = conn.recv(1024).decode().strip()
             if not data and not data == "":
-                player.active = False
+                player.connected = False
                 break
                 
             if not game.started:
-                if data.lower() == 'start' and len([p for p in game.players if p.active]) >= 2:
+                if data.lower() == 'start' and len([p for p in game.players if p.connected]) >= 2:
                     with game.lock:
                         if not game.started:
                             game.started = True
@@ -319,7 +352,7 @@ def handle_client(conn, addr, game):
                 player.input_queue.put(data)
                 
         except Exception:
-            player.active = False
+            player.connected = False
             game.log(f"[-] {player.name} disconnected.")
             game.broadcast_state()
             break
