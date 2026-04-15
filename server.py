@@ -108,12 +108,12 @@ class MonopolyGame:
             Space("GO", "GO", short_name="GO"),
             Space("Zein Kebab", "PROPERTY", 60, 10, "Zein"),
             Space("Zabka", "PROPERTY", 80, 15, "Zabka"),
-            Space("Income Tax", "TAX", 300, short_name="Tax"),
+            Space("Lidl", "PROPERTY", 120, 20, "Lidl"),
             Space("Jail / Visit", "JAIL", short_name="Jail"),
             Space("Dziekanat", "PROPERTY", 140, 25, "Dziekanat"),
             Space("Gmach Glowny B", "PROPERTY", 160, 40, "GG B"),
             Space("Gmach Glowny ", "PROPERTY", 180, 50, "GG"),
-            Space("Free Park", "FREE_PARKING", short_name="Free Prk"),
+            Space("Income Tax", "TAX", 300, short_name="Tax"),
             Space("WZiE", "PROPERTY", 200, 60, "ZiE"),
             Space("Old WETI", "PROPERTY", 240, 70, "Old ETI"),
             Space("New WETI", "PROPERTY", 260, 80, "New ETI"),
@@ -297,8 +297,13 @@ class MonopolyGame:
                     player.bankrupt = True
                     
         elif space.space_type == "TAX":
-            self.log(f"{player.name} paid $200 in taxes")
-            player.balance -= 200
+            base = min(player.balance, 1500) * 0.10 if player.balance > 0 else 0
+            extra = max(0, player.balance - 1500) * 0.25
+            total = base + extra
+            tax_amount = int(round(total / 5.0) * 5)
+            
+            self.log(f"{player.name} paid ${tax_amount} in taxes")
+            player.balance -= tax_amount
             if player.balance < 0:
                 self.log(f"{player.name} went bankrupt")
                 player.bankrupt = True
