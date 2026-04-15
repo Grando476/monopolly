@@ -219,17 +219,37 @@ class MonopolyGame:
                     continue
 
             # Regular Turn Logic
-            player.get_input(self, "Press Enter to roll the dice...")
-            if player.bankrupt:
-                turn_idx += 1
-                continue
+            doubles_count = 0
+            while True:
+                player.get_input(self, "Press Enter to roll the dice...")
+                if player.bankrupt:
+                    break
+                    
+                d1, d2 = random.randint(1, 4), random.randint(1, 4)
+                self.log(f"{player.name} rolled {d1} and {d2} -> Total: {d1+d2}")
                 
-            d1, d2 = random.randint(1, 6), random.randint(1, 6)
-            self.log(f"{player.name} rolled {d1} and {d2} -> Total: {d1+d2}")
-            self.move_player(player, d1 + d2)
-            
-            # Simple simulation of rolling doubles (doesn't grant an extra turn yet)
-            self.broadcast_state()
+                is_double = (d1 == d2)
+                
+                if is_double:
+                    doubles_count += 1
+                    if doubles_count == 3:
+                        self.log(f"{player.name} rolled 3 doubles! Speeding fine - Straight to Jail!")
+                        player.position = 4  # Index of Jail
+                        player.in_jail = True
+                        self.broadcast_state()
+                        break
+                        
+                self.move_player(player, d1 + d2)
+                
+                if player.bankrupt or player.in_jail:
+                    break
+                    
+                if is_double:
+                    self.log(f"{player.name} gets another turn for rolling doubles!")
+                    self.broadcast_state()
+                else:
+                    break
+
             turn_idx += 1
             time.sleep(1.5)
 
