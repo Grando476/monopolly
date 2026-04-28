@@ -12,6 +12,14 @@ PORT = 65432
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+def cleanup_tokens():
+    try:
+        for filename in os.listdir('.'):
+            if filename.startswith('.token_'):
+                os.remove(filename)
+    except Exception:
+        pass
+
 # ANSI Color Codes
 COLORS = {
     "RESET": "\033[0m",
@@ -170,8 +178,25 @@ def receive_messages(sock):
                     try:
                         state = json.loads(json_str)
                         draw_tui(state)
+                        if any("Game over" in msg for msg in state.get("messages", [])):
+                            cleanup_tokens()
                     except json.JSONDecodeError:
                         pass
+                elif line.startswith("AUTH_TOKEN|"):
+                    _, name, token = line.split("|", 2)
+                    try:
+                        with open(f".token_{name}", "w") as f:
+                            f.write(token)
+                    except Exception:
+                        pass
+                elif line.startswith("AUTH_REQUEST|"):
+                    _, name = line.split("|", 1)
+                    try:
+                        with open(f".token_{name}", "r") as f:
+                            token = f.read().strip()
+                        sock.sendall((token + "\n").encode())
+                    except Exception:
+                        sock.sendall(b"NO_TOKEN\n")
                 else:
                     # Regular text messages (like welcome prompt)
                     sys.stdout.write(line + "\n")
@@ -198,6 +223,9 @@ def main():
 
     recv_thread = threading.Thread(target=receive_messages, args=(client,), daemon=True)
     recv_thread.start()
+
+    if len(sys.argv) > 1:
+        client.sendall(sys.argv[1].encode() + b"\n")
 
     try:
         while True:

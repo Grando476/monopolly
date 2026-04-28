@@ -6,6 +6,7 @@ import time
 import json
 import os
 import tkinter as tk
+import uuid
 
 #HOST = '25.36.22.142'
 HOST = '127.0.0.1'
@@ -44,6 +45,7 @@ class Player:
         self.connected = True
         self.bankrupt = False
         self.input_queue = queue.Queue()
+        self.token = str(uuid.uuid4())
 
     def to_dict(self):
         return {
@@ -101,6 +103,14 @@ class MonopolyGame:
         self.lock = threading.Lock()
         self.started = False
         self.message_log = []
+
+    def cleanup_tokens(self):
+        try:
+            for filename in os.listdir('.'):
+                if filename.startswith('.token_'):
+                    os.remove(filename)
+        except Exception as e:
+            print(f"Error cleaning up tokens: {e}")
 
     def init_board(self):
         # 16 space minimalist square board logic
@@ -168,6 +178,7 @@ class MonopolyGame:
             if len(alive_players) < 2 and len(self.players) > 1:
                 self.log("Game over")
                 self.broadcast_state()
+                self.cleanup_tokens()
                 break
                 
             player = self.players[turn_idx % len(self.players)]
@@ -336,6 +347,18 @@ def handle_client(conn, addr, game):
                 conn.close()
                 return
             else:
+                conn.sendall(f"AUTH_REQUEST|{name}\n".encode())
+                try:
+                    provided_token = conn.recv(1024).decode().strip()
+                except Exception:
+                    conn.close()
+                    return
+                    
+                if provided_token != existing_player.token:
+                    conn.sendall(b"Authentication failed. This name belongs to another terminal.\n")
+                    conn.close()
+                    return
+                    
                 existing_player.conn = conn
                 existing_player.addr = addr
                 existing_player.connected = True
@@ -350,6 +373,7 @@ def handle_client(conn, addr, game):
             is_new = True
 
     if is_new:
+        conn.sendall(f"AUTH_TOKEN|{player.name}|{player.token}\n".encode())
         num_players = len(game.players)
         game.log(f"[+] {player.name} joined the game! ({num_players} players in lobby)")
         if num_players >= 2 and not game.started:
@@ -423,6 +447,7 @@ def main():
         game.log("SERVER IS SHUTTING DOWN!")
         game.broadcast_state()
         time.sleep(0.5)
+        game.cleanup_tokens()
         server.close()
         root.destroy()
         os._exit(0)
