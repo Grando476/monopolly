@@ -233,7 +233,7 @@ class MonopolyGame:
                 if is_double:
                     doubles_count += 1
                     if doubles_count == 3:
-                        self.log(f"{player.name} rolled 3 doubles! Speeding fine - Straight to Jail!")
+                        self.log(f"{player.name} rolled 3 doubles! {player.name} is going to Jail!")
                         player.position = 4  # Index of Jail
                         player.in_jail = True
                         self.broadcast_state()
