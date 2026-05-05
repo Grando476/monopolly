@@ -9,7 +9,7 @@ import tkinter as tk
 import uuid
 
 #HOST = '25.36.22.142'
-HOST = '127.20.10.3'
+HOST = '0.0.0.0'
 PORT = 65432
 
 class Space:
