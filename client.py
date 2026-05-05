@@ -6,7 +6,7 @@ import os
 
 #HOST = '172.20.10.3'
 #HOST = '25.36.22.142'
-HOST = '127.0.0.1'
+HOST = '172.20.10.3'
 PORT = 65432
 
 def clear_screen():
